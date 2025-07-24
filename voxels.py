@@ -65,7 +65,7 @@ class Voxels:
     out vec3 vertexColor;
 
     void main() {
-      normal = normalize(aNormal);
+      vec3 normal = normalize(aNormal);
       gl_Position = mvp * vec4(aPos, 1.0);
       float diffuseIntensity = max(dot(normal, lightDir), 0.0);
       vec3 diffuse = diffuseIntensity * lightColor;

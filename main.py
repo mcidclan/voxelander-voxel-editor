@@ -9,12 +9,14 @@ from voxels import Voxels
 from camera import Camera
 from overlay import Overlay
 from grid import Grid
+from exporter_565 import Exporter565
 
 camera = Camera()
 voxels = None
 overlay = None
 grid = None
 cursor = None
+exporter = None
 
 current_width = 800.0
 current_height = 600.0
@@ -36,6 +38,7 @@ def key_callback(window, key, scancode, action, mods):
   voxels.on_key_event(key, action, camera, overlay)
   overlay.on_key_event(key, action)
   grid.on_key_event(key, action)
+  exporter.on_key_event(key, action)
 
 def getOrtho(width, height):
   left = -width / 2
@@ -79,12 +82,13 @@ def window_size_callback(window, width, height):
 
 def main():
   global current_width, current_height, projection, ortho
-  global voxels, overlay, grid, cursor
+  global voxels, overlay, grid, cursor, exporter
+  
   
   if not glfw.init():
     return
     
-  window = glfw.create_window(int(current_width), int(current_height), "Emcee Voxel Editor", None, None)
+  window = glfw.create_window(int(current_width), int(current_height), "Voxelander - Voxel Editor", None, None)
   if not window:
     glfw.terminate()
     return
@@ -93,7 +97,7 @@ def main():
   
   glfw.set_key_callback(window, key_callback)
   glfw.set_window_size_callback(window, window_size_callback)
-  
+
   grid = Grid()
   overlay = Overlay(current_width, current_height)
   voxels = Voxels()
@@ -103,6 +107,13 @@ def main():
   
   grid.cell_size_changed = cell_size_changed
   grid.world_size_changed = world_size_changed
+
+  exporter = Exporter565(voxels)
+  exporter.set_color_levels(red=0.9, green=1.0, blue=1.5)
+  exporter.set_brightness(0)
+  exporter.set_grid_size(256)
+  # exporter.set_swap_yz(True)
+  exporter.set_invert_y(True)
   
   glEnable(GL_DEPTH_TEST)
   glClearColor(0.2, 0.3, 0.3, 1.0)

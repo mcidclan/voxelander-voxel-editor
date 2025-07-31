@@ -3,14 +3,15 @@ import numpy as np
 from OpenGL.GL import *
 import ctypes
 
-def get_cube_faces():
+def get_cube_faces(size):
+  half = size * 0.5
   return [
-    ([-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5], [0, 0, -1]),
-    ([-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [0, 0, 1]),
-    ([-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5], [0, -1, 0]),
-    ([-0.5, 0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5], [0, 1, 0]),
-    ([0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [0.5, -0.5, 0.5], [1, 0, 0]),
-    ([-0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5], [-1, 0, 0]),
+    ([-half, -half, -half], [half, -half, -half], [half, half, -half], [-half, half, -half], [0, 0, -1]),
+    ([-half, -half, half], [half, -half, half], [half, half, half], [-half, half, half], [0, 0, 1]),
+    ([-half, -half, -half], [half, -half, -half], [half, -half, half], [-half, -half, half], [0, -1, 0]),
+    ([-half, half, -half], [half, half, -half], [half, half, half], [-half, half, half], [0, 1, 0]),
+    ([half, -half, -half], [half, half, -half], [half, half, half], [half, -half, half], [1, 0, 0]),
+    ([-half, -half, -half], [-half, half, -half], [-half, half, half], [-half, -half, half], [-1, 0, 0]),
   ]
 
 class Voxels:
@@ -27,6 +28,7 @@ class Voxels:
     self.needs_update = True
 
   def create_shader_program(self):
+    """
     vertex_shader_src = '''
     #version 330 core
     layout(location = 0) in vec3 aPos;
@@ -43,6 +45,7 @@ class Voxels:
     }
     '''
     """
+    
     vertex_shader_src = '''
     #version 330 core
     layout(location = 0) in vec3 aPos;
@@ -70,7 +73,6 @@ class Voxels:
       FragColor = vec4(vertexColor, 1.0);
     }
     '''
-    """
     
     def compile_shader(src, type):
       shader = glCreateShader(type)
@@ -136,23 +138,47 @@ class Voxels:
     vertices = []
     indices = []
     offset = 0
-    cube_faces = get_cube_faces()
+
     for dx in range(size):
       for dy in range(size):
         for dz in range(size):
-          pos = np.array([origin[0] + dx, origin[1] + dy, origin[2] + dz])
-          for face_idx, (v1, v2, v3, v4, normal) in enumerate(cube_faces):
-            nx, ny, nz = [int(n) for n in normal]
-            neighbor = (int(pos[0] + nx), int(pos[1] + ny), int(pos[2] + nz))
-            if (0 <= dx + nx < size) and (0 <= dy + ny < size) and (0 <= dz + nz < size):
-              continue
-            face_vertices = [v1, v2, v3, v4]
-            for vertex in face_vertices:
-              p = pos + np.array(vertex) + 0.5
-              vertices.extend([*p, *normal, *color])
-            indices.extend([offset, offset + 1, offset + 2, offset + 2, offset + 3, offset])
-            offset += 4
-          self.blocks[tuple(pos.astype(int))] = {'block_id': block_id, 'size': size}
+          pos = (origin[0] + dx, origin[1] + dy, origin[2] + dz)
+          self.blocks[pos] = {'block_id': block_id, 'size': size}
+
+    cube_faces = get_cube_faces(size)
+    center = np.array(origin) + size/2
+
+    for face_idx, (v1, v2, v3, v4, normal) in enumerate(cube_faces):
+      nx, ny, nz = normal
+      hide_face = False
+      if size > 1:
+        neighbor_pos = (
+          int(center[0] + nx * size),
+          int(center[1] + ny * size),
+          int(center[2] + nz * size)
+        )
+        if neighbor_pos in self.blocks:
+          hide_face = True
+      else:
+        neighbor_pos = (
+          origin[0] + int(nx),
+          origin[1] + int(ny),
+          origin[2] + int(nz)
+        )
+        if neighbor_pos in self.blocks:
+          hide_face = True
+
+      if hide_face:
+        continue
+
+      face_vertices = [v1, v2, v3, v4]
+      for vertex in face_vertices:
+        p = center + np.array(vertex)
+        vertices.extend([*p, *normal, *color])
+
+      indices.extend([offset, offset + 1, offset + 2, offset + 2, offset + 3, offset])
+      offset += 4
+
     self.batches.append({
       'vertices': vertices,
       'indices': indices,
@@ -161,7 +187,7 @@ class Voxels:
       'dim': size
     })
     self.needs_update = True
-
+  
   def remove_batch(self, block_id):
     if block_id >= len(self.batches):
       return
@@ -218,7 +244,7 @@ class Voxels:
     glUniform3fv(glGetUniformLocation(self.shader_program, "lightColor"), 1, light_color)
     glUniform1f(glGetUniformLocation(self.shader_program, "ambientIntensity"), ambient_intensity)
     glBindVertexArray(self.VAO)
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+    # glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     glDrawElements(GL_TRIANGLES, self.index_count, GL_UNSIGNED_INT, None)
     glBindVertexArray(0)
     glUseProgram(0)

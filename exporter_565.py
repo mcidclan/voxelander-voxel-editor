@@ -16,7 +16,6 @@ class Exporter565:
 
   def on_key_event(self, key, action):
     import glfw
-
     if key == glfw.KEY_E and action == glfw.RELEASE:
       self.export_to_file("object_0.bin")
       print("Export completed! File saved: object_0.bin")
@@ -24,8 +23,11 @@ class Exporter565:
   def export_to_file(self, filename="./object_0.bin"):
     coords = {}
 
-    for (x, y, z), vertex_offset in self.voxels.grid.items():
-      color = self._get_voxel_color(vertex_offset)
+    for (x, y, z), info in self.voxels.blocks.items():
+      block_id = info['block_id']
+      batch = self.voxels.batches[block_id]
+      voxel_local_index = self._find_voxel_local_index(batch, x, y, z)
+      color = self._get_voxel_color(batch['vertices'], voxel_local_index)
       smoothed_color = self._smooth_color_with_neighbors(x, y, z, color)
 
       export_x, export_y, export_z = self._transform_coordinates(x, y, z)
@@ -69,18 +71,15 @@ class Exporter565:
   def _transform_coordinates(self, x, y, z):
     if self.invert_y:
       return x, -y, z
-    
-    #if self.swap_yz:
-    #  return x, -z, y
     return x, y, z
 
-  def _get_voxel_color(self, vertex_offset):
-    vertex_start = vertex_offset * 9  
-    if vertex_start + 8 < len(self.voxels.vertex_data):
+  def _get_voxel_color(self, vertices, voxel_index):
+    vertex_start = voxel_index * 24 * 9
+    if vertex_start + 8 < len(vertices):
       return [
-        self.voxels.vertex_data[vertex_start + 6],
-        self.voxels.vertex_data[vertex_start + 7],
-        self.voxels.vertex_data[vertex_start + 8]
+        vertices[vertex_start + 6],
+        vertices[vertex_start + 7],
+        vertices[vertex_start + 8]
       ]
     return [1.0, 1.0, 1.0]
 
@@ -96,14 +95,26 @@ class Exporter565:
    
     for nx, ny, nz in neighbors:
       neighbor_key = (nx, ny, nz)
-      if neighbor_key in self.voxels.grid:
-        neighbor_vertex_offset = self.voxels.grid[neighbor_key]
-        neighbor_color = self._get_voxel_color(neighbor_vertex_offset)
+      if neighbor_key in self.voxels.blocks:
+        info = self.voxels.blocks[neighbor_key]
+        block_id = info['block_id']
+        batch = self.voxels.batches[block_id]
+        voxel_local_index = self._find_voxel_local_index(batch, nx, ny, nz)
+        neighbor_color = self._get_voxel_color(batch['vertices'], voxel_local_index)
         total_color += np.array(neighbor_color)
         count += 1.0
     
     smoothed = total_color / count
     return [smoothed[0], smoothed[1], smoothed[2]]
+
+  def _find_voxel_local_index(self, batch, x, y, z):
+    px, py, pz = batch['position']
+    size = batch['size']
+    dx = (x - px) // size
+    dy = (y - py) // size
+    dz = (z - pz) // size
+    dim = int(batch['dim'])
+    return dx + dy * dim + dz * dim * dim
 
   def set_color_levels(self, red=0.9, green=1.0, blue=1.5):
     self.OPT_MODEL_RED_LEVEL = red

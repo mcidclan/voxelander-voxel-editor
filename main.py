@@ -10,6 +10,8 @@ from camera import Camera
 from overlay import Overlay
 from grid import Grid
 from exporter_565 import Exporter565
+from vld_io import VLDFile, VLDHelper
+
 
 camera = Camera()
 voxels = None
@@ -39,6 +41,29 @@ def key_callback(window, key, scancode, action, mods):
   overlay.on_key_event(key, action)
   grid.on_key_event(key, action)
   exporter.on_key_event(key, action)
+
+  """Temporary"""
+  if key == glfw.KEY_S and action == glfw.PRESS:
+    if glfw.get_key(window, glfw.KEY_LEFT_CONTROL) == glfw.PRESS or \
+       glfw.get_key(window, glfw.KEY_RIGHT_CONTROL) == glfw.PRESS:
+      vld = VLDFile()
+      data = {
+        "voxels": VLDHelper.export_voxels(voxels),
+        "grid": VLDHelper.export_grid(grid)
+      }
+      vld.save("scene.vld", data)
+   
+  if key == glfw.KEY_O and action == glfw.PRESS:
+    if glfw.get_key(window, glfw.KEY_LEFT_CONTROL) == glfw.PRESS or \
+       glfw.get_key(window, glfw.KEY_RIGHT_CONTROL) == glfw.PRESS:
+      vld = VLDFile()
+      sections = vld.open("scene.vld")
+      if "voxels" in sections:
+        VLDHelper.import_voxels(voxels, sections["voxels"])
+      if "grid" in sections:
+        VLDHelper.import_grid(grid, sections["grid"])
+    
+
 
 def getOrtho(width, height):
   left = -width / 2

@@ -117,6 +117,8 @@ class Voxels:
         self.add_batch(base, size, overlay.color)
 
   def add_batch(self, origin, size, color):
+    if origin in self.blocks:
+      print(f"Conflict at {origin} (already occupied by batch {self.blocks[origin]['block_id']})")
     for dx in range(size):
       for dy in range(size):
         for dz in range(size):

@@ -9,9 +9,9 @@ from voxels import Voxels
 from camera import Camera
 from overlay import Overlay
 from grid import Grid
-from exporter_565 import Exporter565
-from vld_io import VLDFile, VLDHelper
-
+from io_565 import Exporter565
+from io_vld import VLDFile, VLDHelper
+from io_vox import VOXHelper
 
 camera = Camera()
 voxels = None
@@ -42,7 +42,7 @@ def key_callback(window, key, scancode, action, mods):
   grid.on_key_event(key, action)
   exporter.on_key_event(key, action)
 
-  """Temporary"""
+  """Temporary .vld"""
   if key == glfw.KEY_S and action == glfw.PRESS:
     if glfw.get_key(window, glfw.KEY_LEFT_CONTROL) == glfw.PRESS or \
        glfw.get_key(window, glfw.KEY_RIGHT_CONTROL) == glfw.PRESS:
@@ -62,7 +62,12 @@ def key_callback(window, key, scancode, action, mods):
         VLDHelper.import_voxels(voxels, sections["voxels"])
       if "grid" in sections:
         VLDHelper.import_grid(grid, sections["grid"])
-    
+  
+  """Temporay .vox"""
+  if key == glfw.KEY_V and action == glfw.PRESS:
+    if glfw.get_key(window, glfw.KEY_LEFT_CONTROL) == glfw.PRESS or \
+       glfw.get_key(window, glfw.KEY_RIGHT_CONTROL) == glfw.PRESS:
+      VOXHelper.import_vox(voxels, "scene.vox", voxel_size=1, center=True, region_size=256)
 
 
 def getOrtho(width, height):

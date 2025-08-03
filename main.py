@@ -9,6 +9,7 @@ from voxels import Voxels
 from camera import Camera
 from overlay import Overlay
 from grid import Grid
+from ui import UI
 from io_565 import Exporter565
 from io_vld import VLDFile, VLDHelper
 from io_vox import VOXHelper
@@ -19,6 +20,7 @@ overlay = None
 grid = None
 cursor = None
 exporter = None
+ui = None
 
 current_width = 800.0
 current_height = 600.0
@@ -109,10 +111,12 @@ def window_size_callback(window, width, height):
   
   projection = getPerspective(current_width, current_height)
   ortho = getOrtho(current_width, current_height)
+  
+  ui.update_size(width, height)
 
 def main():
   global current_width, current_height, projection, ortho
-  global voxels, overlay, grid, cursor, exporter
+  global voxels, overlay, grid, cursor, exporter, ui
   
   
   if not glfw.init():
@@ -125,6 +129,12 @@ def main():
   
   glfw.make_context_current(window)
   
+  ui = UI(window, int(current_width), int(current_height))
+  ui.set_callbacks(
+    lambda: print("open"),
+    lambda: print("save")
+  )
+
   glfw.set_key_callback(window, key_callback)
   glfw.set_window_size_callback(window, window_size_callback)
 
@@ -162,6 +172,7 @@ def main():
     last_time = current_time
     
     glfw.poll_events()
+    ui.process_inputs()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     
     camera.update(delta_time)
@@ -175,12 +186,16 @@ def main():
     grid.draw(pv)
     overlay.draw(ortho)
     
+    glViewport(0, 0, int(current_width), int(current_height))
+    ui.draw()
+        
     glfw.swap_buffers(window)
   
   cursor.cleanup()
   overlay.cleanup()
   voxels.cleanup()
   grid.cleanup()
+  ui.cleanup()
   
   glfw.terminate()
 

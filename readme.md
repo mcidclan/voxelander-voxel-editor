@@ -58,5 +58,6 @@ Exports are saved in the `565` format (`.bin`), specifically designed for the Be
 - PyOpenGL
 - GLFW
 - NumPy
+- imgui
 
 *m-c/d*

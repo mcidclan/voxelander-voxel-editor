@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ENV_DIR="env"
-REQUIRED_PACKAGES=("PyOpenGL" "glfw" "numpy")
+REQUIRED_PACKAGES=("PyOpenGL" "glfw" "numpy" "imgui")
 MAIN_SCRIPT="main.py"
 
 function packagesInstalled() {

@@ -16,8 +16,9 @@ def get_cube_faces(size):
 
 class Voxels:
   def __init__(self):
-    self.blocks = {}
+    self.voxels = {}
     self.batches = []
+    self.geometry_data = []
     self.VAO = glGenVertexArrays(1)
     self.VBO = glGenBuffers(1)
     self.EBO = glGenBuffers(1)
@@ -107,36 +108,37 @@ class Voxels:
         for dy in range(size):
           for dz in range(size):
             pos = (base[0] + dx, base[1] + dy, base[2] + dz)
-            if pos in self.blocks:
-              if self.blocks[pos]['size'] <= size:
-                to_remove.append(self.blocks[pos]['block_id'])
+            if pos in  self.voxels:
+              if  self.voxels[pos]['size'] <= size:
+                to_remove.append( self.voxels[pos]['voxel_id'])
       if to_remove:
         for bid in set(to_remove):
           self.remove_batch(bid)
       else:
         self.add_batch(base, size, overlay.color)
 
+
   def add_batch(self, origin, size, color):
-    if origin in self.blocks:
-      print(f"Conflict at {origin} (already occupied by batch {self.blocks[origin]['block_id']})")
+    if origin in  self.voxels:
+      print(f"Conflict at {origin} (already occupied by batch { self.voxels[origin]['voxel_id']})")
     for dx in range(size):
       for dy in range(size):
         for dz in range(size):
           pos = (origin[0] + dx, origin[1] + dy, origin[2] + dz)
-          if pos in self.blocks:
-            if self.blocks[pos]['size'] >= size:
+          if pos in  self.voxels:
+            if  self.voxels[pos]['size'] >= size:
               return
     to_remove = []
     for dx in range(size):
       for dy in range(size):
         for dz in range(size):
           pos = (origin[0] + dx, origin[1] + dy, origin[2] + dz)
-          if pos in self.blocks:
-            to_remove.append(self.blocks[pos]['block_id'])
+          if pos in  self.voxels:
+            to_remove.append( self.voxels[pos]['voxel_id'])
     for bid in set(to_remove):
       self.remove_batch(bid)
 
-    block_id = len(self.batches)
+    voxel_id = len(self.batches)
     vertices = []
     indices = []
     offset = 0
@@ -145,7 +147,7 @@ class Voxels:
       for dy in range(size):
         for dz in range(size):
           pos = (origin[0] + dx, origin[1] + dy, origin[2] + dz)
-          self.blocks[pos] = {'block_id': block_id, 'size': size}
+          self.voxels[pos] = {'voxel_id': voxel_id, 'size': size}
 
     cube_faces = get_cube_faces(size)
     center = np.array(origin) + size/2
@@ -159,7 +161,7 @@ class Voxels:
           int(center[1] + ny * size),
           int(center[2] + nz * size)
         )
-        if neighbor_pos in self.blocks:
+        if neighbor_pos in  self.voxels:
           hide_face = True
       else:
         neighbor_pos = (
@@ -167,7 +169,7 @@ class Voxels:
           origin[1] + int(ny),
           origin[2] + int(nz)
         )
-        if neighbor_pos in self.blocks:
+        if neighbor_pos in  self.voxels:
           hide_face = True
 
       if hide_face:
@@ -181,20 +183,30 @@ class Voxels:
       indices.extend([offset, offset + 1, offset + 2, offset + 2, offset + 3, offset])
       offset += 4
 
-    self.batches.append({
+    geometry_index = len(self.geometry_data)
+    self.geometry_data.append({
       'vertices': vertices,
-      'indices': indices,
+      'indices': indices
+    })
+
+    self.batches.append({
+      'geometry_index': geometry_index,
       'position': tuple(origin),
       'size': size,
       'dim': size
     })
     self.needs_update = True
   
-  def remove_batch(self, block_id):
-    if block_id >= len(self.batches):
+  def remove_batch(self, voxel_id):
+    if voxel_id >= len(self.batches):
       return
-    self.batches[block_id] = None
-    self.blocks = {k: v for k, v in self.blocks.items() if v['block_id'] != block_id}
+    
+    if self.batches[voxel_id] is not None:
+      geometry_index = self.batches[voxel_id]['geometry_index']
+      self.geometry_data[geometry_index] = None
+    
+    self.batches[voxel_id] = None
+    self.voxels = {k: v for k, v in  self.voxels.items() if v['voxel_id'] != voxel_id}
     self.needs_update = True
 
   def update_buffers(self):
@@ -206,11 +218,18 @@ class Voxels:
     for b in self.batches:
       if b is None:
         continue
-      v = np.array(b['vertices'], dtype=np.float32)
-      i = np.array(b['indices'], dtype=np.uint32) + offset
+      
+      geometry_index = b['geometry_index']
+      if geometry_index >= len(self.geometry_data) or self.geometry_data[geometry_index] is None:
+        continue
+        
+      geometry = self.geometry_data[geometry_index]
+      v = np.array(geometry['vertices'], dtype=np.float32)
+      i = np.array(geometry['indices'], dtype=np.uint32) + offset
       vertices.extend(v)
       indices.extend(i)
       offset += len(v) // self.vertex_stride
+      
     vertices = np.array(vertices, dtype=np.float32)
     indices = np.array(indices, dtype=np.uint32)
     glBindVertexArray(self.VAO)
